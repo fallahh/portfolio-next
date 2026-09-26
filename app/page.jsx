@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   ArrowUpRight,
+  Download,
   Instagram,
   Linkedin,
   Mail,
@@ -567,7 +568,7 @@ const skills = [
   {
     name: 'LTspice',
     category: 'Power Electronics',
-    image: '/3_LTspice.jpg',
+    image: '/3_Ltspice.jpg',
   },
   {
     name: 'GX Works2',
@@ -775,10 +776,67 @@ const aboutPhotos = Array.from(
 
 export default function Home(){
   const [open, setOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingClosing, setIsLoadingClosing] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [aboutPhoto, setAboutPhoto] = useState(0);
   const [darkMode, setDarkMode] = useState(true);
   const [projectIndex, setProjectIndex] = useState(0);
+  const [skillIndex, setSkillIndex] = useState(0);
+  const cursorGlowRef = useRef(null);
+  const touchStartX = useRef(0);
+const touchStartY = useRef(0);
+
+function handleProjectTouchStart(e) {
+  touchStartX.current = e.touches[0].clientX;
+  touchStartY.current = e.touches[0].clientY;
+}
+
+function handleProjectTouchEnd(e) {
+  const touchEndX = e.changedTouches[0].clientX;
+  const touchEndY = e.changedTouches[0].clientY;
+
+  const deltaX = touchEndX - touchStartX.current;
+  const deltaY = touchEndY - touchStartY.current;
+
+  // Abaikan jika gesture lebih dominan vertikal
+  if (Math.abs(deltaX) < Math.abs(deltaY)) return;
+
+  // Minimal jarak swipe
+  if (Math.abs(deltaX) < 50) return;
+
+  if (deltaX < 0) {
+    nextProject();
+  } else {
+    prevProject();
+  }
+}
+
+
+
+function handleSkillTouchStart(e) {
+  touchStartX.current = e.touches[0].clientX;
+  touchStartY.current = e.touches[0].clientY;
+}
+
+function handleSkillTouchEnd(e) {
+  const touchEndX = e.changedTouches[0].clientX;
+  const touchEndY = e.changedTouches[0].clientY;
+
+  const deltaX = touchEndX - touchStartX.current;
+  const deltaY = touchEndY - touchStartY.current;
+
+  if (Math.abs(deltaX) < Math.abs(deltaY)) return;
+  if (Math.abs(deltaX) < 50) return;
+
+  if (deltaX < 0) {
+    nextSkill();
+  } else {
+    prevSkill();
+  }
+}
+
   function nextPhoto() {
   setAboutPhoto((current) =>
     (current + 1) % aboutPhotos.length
@@ -801,6 +859,15 @@ function prevProject() {
     (current - 1 + projects.length) % projects.length
   );
 }
+
+function nextSkill() {
+  setSkillIndex((current) => (current + 1) % skills.length);
+}
+
+function prevSkill() {
+  setSkillIndex((current) => (current - 1 + skills.length) % skills.length);
+}
+
 
 
   async function submit(e) {
@@ -834,8 +901,128 @@ function prevProject() {
     setStatus('Something went wrong. Please try again.');
   }
 }
+  useEffect(() => {
+    const glow = cursorGlowRef.current;
+    if (!glow || window.matchMedia('(pointer: coarse)').matches) return;
+
+    let raf = 0;
+    let x = -100;
+    let y = -100;
+    let tx = -100;
+    let ty = -100;
+
+    const move = (event) => {
+      tx = event.clientX;
+      ty = event.clientY;
+      if (!raf) {
+        raf = requestAnimationFrame(() => {
+          x += (tx - x) * 0.18;
+          y += (ty - y) * 0.18;
+          glow.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+          raf = 0;
+        });
+      }
+    };
+
+    const leave = () => glow.classList.add('cursor-glow-hidden');
+    const enter = () => glow.classList.remove('cursor-glow-hidden');
+
+    window.addEventListener('mousemove', move, { passive: true });
+    document.addEventListener('mouseleave', leave);
+    document.addEventListener('mouseenter', enter);
+
+    return () => {
+      window.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseleave', leave);
+      document.removeEventListener('mouseenter', enter);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading) return;
+
+    let progress = 0;
+
+    const progressTimer = setInterval(() => {
+      progress += 1;
+
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(progressTimer);
+        setLoadingProgress(100);
+
+        setTimeout(() => {
+          setIsLoadingClosing(true);
+        }, 180);
+
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 720);
+
+        return;
+      }
+
+      setLoadingProgress(progress);
+    }, 22);
+
+    return () => {
+      clearInterval(progressTimer);
+    };
+  }, [isLoading]);
+
   return (
     <main className={darkMode ? 'theme-dark' : 'theme-light'}>
+
+      {isLoading && (
+        <div
+          className={`loading-screen ${isLoadingClosing ? 'loading-screen--closing' : ''}`}
+          aria-label="Loading portfolio"
+          aria-live="polite"
+        >
+          <div className="loading-noise" />
+          <div className="loading-grid" />
+
+          <div className="loading-orbit loading-orbit-one" />
+          <div className="loading-orbit loading-orbit-two" />
+
+          <div className="loading-content">
+            <div className="loading-mark">
+              <span className="loading-mark-line loading-mark-line-one" />
+              <span className="loading-mark-line loading-mark-line-two" />
+              <span className="loading-mark-dot" />
+            </div>
+
+            <div className="loading-character-wrap">
+              <div className="loading-character-glow" />
+              <img
+                src="/loadanimasi.gif"
+                alt=""
+                className="loading-character"
+              />
+            </div>
+            <div className="loading-copy">
+              <div className="loading-status">
+                <span className="loading-status-dot" />
+                <span>INITIALIZING PORTFOLIO</span>
+              </div>
+
+              <div className="loading-percent" aria-live="polite">
+                <span>{String(loadingProgress).padStart(2, '0')}</span>
+                <small>%</small>
+              </div>
+            </div>
+
+            <div className="loading-progress" aria-hidden="true">
+              <span style={{ width: `${loadingProgress}%` }} />
+            </div>
+          </div>
+
+          <div className="loading-corner loading-corner-tl" />
+          <div className="loading-corner loading-corner-br" />
+        </div>
+      )}
+
 
       <nav className="nav">
 
@@ -921,36 +1108,58 @@ function prevProject() {
 
   {/* Hero Content */}
   <div className="hero-content">
-    <div className="eyebrow">
+    <div className="eyebrow hero-reveal hero-reveal-1">
       <span className="dot" />
       Electrical Engineer · Builder · Researcher
     </div>
 
-    <h1>
-      Esa Fallah
-      <br />
-      <span>Royani.</span>
+    <h1 className="hero-name hero-name-reveal">
+      Esa Fallah<br />
+      <span className="hero-name-accent">Royani.</span>
     </h1>
 
-    <div className="hero-role">
+    <div className="hero-role hero-reveal hero-reveal-3">
       Electrical Engineer
     </div>
 
-    <p className="hero-university">
+    <p className="hero-university hero-reveal hero-reveal-4">
       Institut Teknologi Nasional Bandung
     </p>
 
-    <p className="lead">
+    <p className="lead hero-reveal hero-reveal-5">
       I build systems that turn ideas into something real.
     </p>
 
-    <div className="actions">
+    <div className="actions hero-reveal hero-reveal-6">
       <a className="btn primary" href="#work">
         Explore my work <ArrowUpRight size={17} />
       </a>
 
       <a className="btn ghost" href="#contact">
         Let’s talk
+      </a>
+    </div>
+
+    <div className="resume-actions hero-reveal hero-reveal-7">
+      <a
+        href="/Esa_Fallah_Royani_Resume.pdf"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="resume-link"
+      >
+        View resume
+        <ArrowUpRight size={14} />
+      </a>
+
+      <span className="resume-divider">|</span>
+
+      <a
+        href="/Esa_Fallah_Royani_Resume.pdf"
+        download="Esa_Fallah_Royani_Resume.pdf"
+        className="resume-link"
+      >
+        Download PDF
+        <Download size={13} />
       </a>
     </div>
   </div>  
@@ -1128,7 +1337,17 @@ function prevProject() {
     <ChevronLeft size={20} />
   </button>
 
-  <div className="projects-track">
+  <div
+  className="projects-track"
+  onTouchStart={handleProjectTouchStart}
+  onTouchEnd={handleProjectTouchEnd}
+  >
+
+    <div className="swipe-hint" aria-hidden="true">
+  <span className="swipe-arrow">‹</span>
+  <span>SWIPE TO EXPLORE</span>
+  <span className="swipe-arrow">›</span>
+  </div>  
 
     {[0, 1, 2].map((offset) => {
       const index = (projectIndex + offset) % projects.length;
@@ -1277,88 +1496,79 @@ function prevProject() {
 
 
   {/* =====================================================
-      TOOLS MARQUEE
+      TOOLS CAROUSEL
   ===================================================== */}
 
-  <div className="skills-marquee">
+  <div className="skills-carousel">
 
-    <div className="skills-track">
+    <button
+      type="button"
+      className="skill-carousel-arrow skill-carousel-arrow-left"
+      onClick={prevSkill}
+      aria-label="Previous tool"
+    >
+      <ChevronLeft size={20} />
+    </button>
 
-      {/* FIRST SET */}
-      <div className="skills-set">
+    <div
+      className="skills-marquee"
+      onTouchStart={handleSkillTouchStart}
+      onTouchEnd={handleSkillTouchEnd}
+    >
+      <div className="skills-track">
+        {[0, 1, 2, 3, 4].map((offset) => {
+          const index = (skillIndex + offset) % skills.length;
+          const skill = skills[index];
 
-        {skills.map((skill, i) => (
-          <div
-            className="skill-card"
-            key={`first-${skill.name}`}
-          >
+          return (
+            <div
+              className={`skill-card ${
+                offset === 2 ? 'skill-card-active' : ''
+              }`}
+              key={`${skill.name}-${offset}`}
+            >
+              <span className="skill-number">
+                {skill.n || String(index + 1).padStart(2, '0')}
+              </span>
 
-            <span className="skill-number">
-              {String(i + 1).padStart(2, '0')}
-            </span>
+              <div className="skill-icon-wrap">
+                <img
+                  src={skill.image}
+                  alt={`${skill.name} icon`}
+                  className="skill-icon"
+                />
+              </div>
 
-            <div className="skill-icon-wrap">
-              <img
-                src={skill.image}
-                alt={`${skill.name} icon`}
-                className="skill-icon"
-              />
+              <div className="skill-info">
+                <h3>{skill.name}</h3>
+                <span>{skill.category}</span>
+              </div>
+
+              <div className="skill-arrow">
+                ↗
+              </div>
             </div>
-
-            <div className="skill-info">
-              <h3>{skill.name}</h3>
-              <span>{skill.category}</span>
-            </div>
-
-            <div className="skill-arrow">
-              ↗
-            </div>
-
-          </div>
-        ))}
-
+          );
+        })}
       </div>
-
-
-      {/* SECOND SET */}
-      <div
-        className="skills-set"
-        aria-hidden="true"
-      >
-
-        {skills.map((skill, i) => (
-          <div
-            className="skill-card"
-            key={`second-${skill.name}`}
-          >
-
-            <span className="skill-number">
-              {String(i + 1).padStart(2, '0')}
-            </span>
-
-            <div className="skill-icon-wrap">
-              <img
-                src={skill.image}
-                alt=""
-                className="skill-icon"
-              />
-            </div>
-
-            <div className="skill-info">
-              <h3>{skill.name}</h3>
-              <span>{skill.category}</span>
-            </div>
-
-            <div className="skill-arrow">
-              ↗
-            </div>
-
-          </div>
-        ))}
-
-      </div>
-
     </div>
+
+    <div className="skills-swipe-hint" aria-hidden="true">
+      <span className="skills-swipe-line" />
+      <span className="skills-swipe-arrow">‹</span>
+      <span className="skills-swipe-text">SWIPE TO EXPLORE</span>
+      <span className="skills-swipe-arrow skills-swipe-arrow-right">›</span>
+      <span className="skills-swipe-line" />
+    </div>
+
+    <button
+      type="button"
+      className="skill-carousel-arrow skill-carousel-arrow-right"
+      onClick={nextSkill}
+      aria-label="Next tool"
+    >
+      <ChevronRight size={20} />
+    </button>
 
   </div>
 
@@ -1650,9 +1860,9 @@ function prevProject() {
       </h2>
 
       <p>
-        Send a message. The backend API is already wired into
-        this starter, ready to connect to email or a database
-        when you choose the production setup.
+        <strong>Let’s start a conversation.</strong>
+        <br />
+        Have a project, idea, or opportunity in mind? I’d love to hear about it.
       </p>
 
       <div className="contact-socials">
